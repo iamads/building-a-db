@@ -43,6 +43,12 @@ B+tree principles:
   - [ ] using disk to store data
   - [ ] parsing sql
   - [ ] JSON based storage
+  - [ ] Analyse different DB storage engine
+    - [ ] InnoDb
+    - [ ] WiredTiger
+    - [ ] BitCask
+    - [ ] ...
+  - [ ] 
 
 
 
