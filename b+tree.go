@@ -1,10 +1,18 @@
 package main
 
+import (
+	"fmt"
+)
+
 const MAX_SIZE = 4
 
 // Root node will always point to intermediate nodes
 type BpTreeRootNode struct {
 	Children []*BpTreeInternalNode
+}
+
+func (t *BpTreeRootNode) isFull() bool {
+	return len(t.Children) == MAX_SIZE
 }
 
 // BpTreeInternal Node will always point to Leaf node (For now we are talking about single level)
@@ -52,8 +60,56 @@ Insertion flow (single level)
 
 **/
 
-func (t *BpTreeRootNode) Insert(key int, val string) {
+func (t *BpTreeRootNode) Insert(key int, val string) error {
+	inodeidx := t.findInternalPredecessor(key)
 
+	if inodeidx == -1 {
+		// TDOD: create new internal node
+		if t.isFull() {
+			return fmt.Errorf("Root node is full, we can't insert key=(%d) and val=(%s)", key, val)
+		}
+		t.Children = append(t.Children, &BpTreeInternalNode{})
+		copy(t.Children[1:], t.Children[:len(t.Children)-1])
+		newInode := createNewInternalNode(key)
+		newInode.addLeafNode(key, val)
+		t.Children[0] = newInode
+	} else {
+		inode := t.Children[inodeidx]
+		inode.addLeafNode(key, val)
+		if !inode.isfull() {
+			return
+		}
+
+		lastEle := inode.Children[len(inode.Children)-1]
+		inode.Children = inode.Children[:MAX_SIZE+1]
+
+		if inodeidx+1 <= MAX_SIZE {
+			if len(t.Children) >= inodeidx+1 {
+				// how should this traversal happen ?
+				/**
+				The issue is for max size of 4 we. have 4 internal nodesa
+
+				1.        6.         10.          15 <-internal nodes
+
+				1 3 4 5     6 7 8 9    10 11 12 13     15 16 <- leaf nodes
+
+				Mmy tree still has some space but. if I want to insert key 2
+				it will cause cascade effect in all the other internal nodes how should. I handle this?
+
+				Answer:
+
+				When internal node size > MAX_SIZE
+				- We split internal node
+				- We update parent node with the the splitted nodes
+				- In case parent also reaches max size we split parent too
+					- For single level internal nodes we will return error
+					- For multi level internal nodes we will split parent too
+						- This will also require parent reference in child node
+				*/
+			}
+		}
+
+	}
 }
 
 // If all elemennts are greater than val -> -1
@@ -73,7 +129,7 @@ func (t *BpTreeRootNode) findInternalPredecessor(key int) int {
 		return len(t.Children) - 1
 	}
 
-	index := -0
+	index := 0
 	for i, v := range t.Children {
 		if v.Key > key {
 			index = i - 1
@@ -83,17 +139,36 @@ func (t *BpTreeRootNode) findInternalPredecessor(key int) int {
 	return index
 }
 
-func (t *BpTreeInternalNode) createNewInternalNode(key int) error {
-	// this might cause a separate key to be placed into the newly created internal node
-	return nil
+func createNewInternalNode(key int) *BpTreeInternalNode {
+	inode := &BpTreeInternalNode{Key: key}
+	return &inode
 }
 
 func (t *BpTreeInternalNode) isfull() bool {
-	return false
+	return len(t.Children) == MAX_SIZE
 }
 
 func (t *BpTreeInternalNode) addLeafNode(key int, val string) {
+	toInsertIdx := 0
 
+	if key == t.Key {
+		toInsertIdx = 0
+	}
+
+	if len(t.Children) > 0 && key > t.Children[len(t.Children)-1].Key {
+		toInsertIdx = len(t.Children)
+	}
+
+	for i, v := range t.Children {
+		if v.Key > key {
+			toInsertIdx = i
+			break
+		}
+	}
+
+	t.Children = append(t.Children, &BpTreeLeafNode{})
+	copy(t.Children[toInsertIdx+1:], t.Children[toInsertIdx:])
+	t.Children[toInsertIdx] = &BpTreeLeafNode{Key: key, Value: val}
 }
 
 // func (bpn *BpTreeNode) insertChild(n int) {

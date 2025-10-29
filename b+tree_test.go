@@ -270,3 +270,176 @@ func TestFindInternalPredecessor(t *testing.T) {
 // 		findLeafNodeParent(refs, 25)
 // 	}
 // }
+
+func TestAddLeafNode(t *testing.T) {
+	tests := []struct {
+		name        string
+		node        *BpTreeInternalNode
+		key         int
+		val         string
+		expectedKey int
+		expectedVal string
+	}{
+		{
+			name: "Insert at beginning",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 15, Value: "value15"},
+					{Key: 20, Value: "value20"},
+				},
+			},
+			key:         5,
+			val:         "value5",
+			expectedKey: 5,
+			expectedVal: "value5",
+		},
+		{
+			name: "Insert in middle",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 5, Value: "value5"},
+					{Key: 15, Value: "value15"},
+				},
+			},
+			key:         10,
+			val:         "value10",
+			expectedKey: 10,
+			expectedVal: "value10",
+		},
+		{
+			name: "Insert at end",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 5, Value: "value5"},
+					{Key: 10, Value: "value10"},
+				},
+			},
+			key:         20,
+			val:         "value20",
+			expectedKey: 20,
+			expectedVal: "value20",
+		},
+		{
+			name: "Key equals internal node key",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 15, Value: "value15"},
+				},
+			},
+			key:         10,
+			val:         "value10",
+			expectedKey: 10,
+			expectedVal: "value10",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.node.addLeafNode(tt.key, tt.val)
+
+			// Check that the children array has the expected length
+			expectedLength := len(tt.node.Children)
+			if expectedLength != 1 && expectedLength != 2 && expectedLength != 3 {
+				t.Errorf("Expected children length to be 1, 2, or 3, got %d", expectedLength)
+			}
+
+			// Find the inserted element
+			found := false
+			for _, child := range tt.node.Children {
+				if child.Key == tt.expectedKey && child.Value == tt.expectedVal {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Errorf("Expected key %d with value %s not found in children", tt.expectedKey, tt.expectedVal)
+			}
+
+			// Check that all children are sorted
+			for i := 1; i < len(tt.node.Children); i++ {
+				if tt.node.Children[i-1].Key > tt.node.Children[i].Key {
+					t.Errorf("Children are not sorted: %d > %d at position %d",
+						tt.node.Children[i-1].Key, tt.node.Children[i].Key, i)
+				}
+			}
+		})
+	}
+}
+
+func TestAddLeafNodeEdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		node        *BpTreeInternalNode
+		key         int
+		val         string
+		description string
+	}{
+		{
+			name:        "Insert with minimum integer key",
+			node:        &BpTreeInternalNode{Key: 0, Children: []*BpTreeLeafNode{}},
+			key:         math.MinInt,
+			val:         "min_value",
+			description: "Testing with minimum possible integer key",
+		},
+		{
+			name:        "Insert with maximum integer key",
+			node:        &BpTreeInternalNode{Key: 0, Children: []*BpTreeLeafNode{}},
+			key:         math.MaxInt,
+			val:         "max_value",
+			description: "Testing with maximum possible integer key",
+		},
+		{
+			name: "Insert with existing key",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 5, Value: "value5"},
+					{Key: 15, Value: "value15"},
+				},
+			},
+			key:         5,
+			val:         "new_value5",
+			description: "Testing insertion of duplicate key",
+		},
+		{
+			name:        "Insert into node with one child",
+			node:        &BpTreeInternalNode{Key: 10, Children: []*BpTreeLeafNode{{Key: 5, Value: "value5"}}},
+			key:         10,
+			val:         "value10",
+			description: "Testing insertion into node that already has one child",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldLength := len(tt.node.Children)
+			tt.node.addLeafNode(tt.key, tt.val)
+			newLength := len(tt.node.Children)
+
+			// Check that length increased by 1
+			if newLength != oldLength+1 {
+				t.Errorf("Expected length to increase from %d to %d, got %d", oldLength, oldLength+1, newLength)
+			}
+
+			// Check that the inserted element exists
+			found := false
+			for _, child := range tt.node.Children {
+				if child.Key == tt.key && child.Value == tt.val {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				t.Errorf("Inserted key %d with value %s not found", tt.key, tt.val)
+			}
+
+			t.Logf("Test case: %s - %s", tt.name, tt.description)
+		})
+	}
+}
