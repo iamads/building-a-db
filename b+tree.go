@@ -116,20 +116,40 @@ func (t *BpTreeRootNode) Insert(key int, val string) error {
 		t.Children[0] = newInode
 	} else {
 		inode := t.Children[inodeidx]
-		inode.addLeafNode(key, val)
-		if !inode.isfull() {
-			return
-		}
-
-		lastEle := inode.Children[len(inode.Children)-1]
-		inode.Children = inode.Children[:MAX_SIZE+1]
-
-		if inodeidx+1 <= MAX_SIZE {
-			if len(t.Children) >= inodeidx+1 {
+		if inode.isFull() {
+			// If root has space we will split current node
+			if len(t.Children) == MAX_SIZE {
+				original, next := splitInode2(inode)
+				t.Children[inodeidx] = original
+				t.Children = append(t.Children, &BpTreeInternalNode{})
+				copy(t.Children[inodeidx+2:], t.Children[inodeidx+1:])
+				t.Children[inodeidx+1] = next
+			} else {
+				// else we return error
+				return fmt.Errorf("Can't create new internal node for key=(%d) and val=(%s)", key, val)
 			}
+		} else {
+			inode.addLeafNode(key, val)
 		}
-
 	}
+
+	return nil
+}
+
+func splitInode2(inode *BpTreeInternalNode) (*BpTreeInternalNode, *BpTreeInternalNode) {
+	q := MAX_SIZE / 2
+
+	originalChildren := inode.Children[:q]
+	nextChildren := inode.Children[q:]
+
+	original := createNewInternalNode(originalChildren[0].Key)
+	original.Children = originalChildren
+
+	next := createNewInternalNode(nextChildren[0].Key)
+	next.Children = nextChildren
+
+	return original, next
+
 }
 
 // If all elemennts are greater than val -> -1
@@ -160,11 +180,11 @@ func (t *BpTreeRootNode) findInternalPredecessor(key int) int {
 }
 
 func createNewInternalNode(key int) *BpTreeInternalNode {
-	inode := &BpTreeInternalNode{Key: key}
+	inode := BpTreeInternalNode{Key: key}
 	return &inode
 }
 
-func (t *BpTreeInternalNode) isfull() bool {
+func (t *BpTreeInternalNode) isFull() bool {
 	return len(t.Children) == MAX_SIZE
 }
 
@@ -190,103 +210,3 @@ func (t *BpTreeInternalNode) addLeafNode(key int, val string) {
 	copy(t.Children[toInsertIdx+1:], t.Children[toInsertIdx:])
 	t.Children[toInsertIdx] = &BpTreeLeafNode{Key: key, Value: val}
 }
-
-// func (bpn *BpTreeNode) insertChild(n int) {
-// 	if len(bpn.Children) == 0 {
-// 		bpn.Children = append(bpn.Children, &BpTreeNode{Key: n})
-// 		return
-// 	}
-
-// 	var i int
-// 	for index, v := range bpn.Children {
-// 		if v.Key > n {
-// 			i = index - 1
-// 			break
-// 		}
-// 	}
-
-// 	bpn.Children = append(bpn.Children, &BpTreeNode{})
-// 	copy(bpn.Children[i+1:], bpn.Children[i:])
-// 	bpn.Children[i] = &BpTreeNode{Key: n}
-// }
-
-// // returns index of to be parent node
-// func findLeafNodeParent(refs []*BpTreeNode, val int) int {
-// 	// only current level for now
-// 	// if 1 ref => then 0
-// 	// if 2 ref => if less than second => 1st other wise second
-// 	// if 3 refs
-
-// 	cur := 0
-
-// 	nodes := refs
-// 	for len(nodes) > 2 {
-// 		midpoint := len(nodes) / 2
-
-// 		if val >= nodes[midpoint].Key {
-// 			cur += midpoint
-// 			nodes = nodes[midpoint:]
-// 		} else {
-// 			nodes = nodes[:midpoint]
-// 		}
-// 	}
-
-// 	if len(nodes) == 0 {
-// 		return -1 // Handle empty case, though probably not reached
-// 	}
-
-// 	if len(nodes) == 1 {
-// 		if nodes[0].Key > val {
-// 			return -1
-// 		}
-// 		return cur + 0
-// 	}
-
-// 	if len(nodes) == 2 {
-// 		if nodes[0].Key > val {
-// 			return -1
-// 		}
-
-// 		if nodes[0].Key < val && val < nodes[1].Key {
-// 			return cur + 0
-// 		}
-
-// 		return cur + 1
-// 	}
-
-// 	return -1 // Fallback, should not reach
-// }
-
-// func (bp *BpTreeNode) Insert(n int) {
-// 	// If it's the first element to be inserted then
-// 	if len(bp.Children) == 0 {
-// 		bp.Children = append(bp.Children, &BpTreeNode{Key: n})
-// 		return
-// 	}
-// 	// find leaf node parent
-// 	index := findLeafNodeParent(bp.Children, n)
-
-// 	if index == -1 {
-// 		// If index is -1 , I have to insert a new intermediate node
-// 		// I also have to keep in mind that I can't go over the max size of intermediate nodes
-
-// 		if len(bp.Children)+1 < MAX_SIZE {
-// 			// add in the intermediate node
-// 			// add the element here
-// 			n := len(bp.Children)
-// 			bp.Children = bp.Children[:n+1]
-// 			copy(bp.Children[1:], bp.Children[:n])
-// 			bp.Children[0] = &BpTreeNode{Key: n}
-// 			bp.Children[0].Children = append(bp.Children[0].Children, &BpTreeNode{})
-// 		} else {
-// 			// create new intermediate node
-// 			// reference it to parent
-// 			// add element in leaf node
-
-// 			// lets keep it like this for now
-// 		}
-// 	} else {
-// 		// TODO: currently not checking leaf node
-// 		bp.Children[index].insertChild(n) // insert child will take care of inserting the child in correct sorted order
-// 	}
-// }
