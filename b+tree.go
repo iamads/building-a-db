@@ -60,6 +60,47 @@ Insertion flow (single level)
 
 **/
 
+/*
+ * @topic: Handling Node Splitting and the "Cascade" Effect
+ *
+ * This note explains the logic for what happens when a node (leaf or internal)
+ * overflows and how that split can propagate up the tree.
+ *
+ * --- The Splitting Process ---
+ *
+ * 1.  **Node is Full:** An insertion causes a node's key count to exceed MAX_SIZE.
+ *
+ * 2.  **Split:** The full node is split into two new nodes (let's call them L and R).
+ *
+ * 3.  **Promote Key:** A key is sent "up" to the parent node to act as a separator.
+ * -   **If Leaf Split:** We *copy* the first key of the new R node to the parent. (Currently we do not have multiple values in leaf node, we can consider this at a later stage TODO)
+ * -   **If Internal Split:** We *move* the middle key from the full node up to the parent.
+ *
+ * 4.  **Insert into Parent (The "Cascade"):**
+ * -   The parent node now has to insert the promoted key and a pointer to the new R node.
+ * -   **If the parent is NOT full:** The key/pointer are added, and the process stops.
+ * (e.g., inserting key '2' in the example tree only splits a leaf and
+ * adds key '4' to the root, which has space. No cascade occurs.)
+ *
+ * -   **If the parent IS full:** The parent is now *also* over MAX_SIZE.
+ * We must repeat this entire process (from Step 2) on the parent.
+ * This "split-and-promote" can continue all the way up.
+ *
+ * 5.  **Root Split (Tree Growth):**
+ * -   If the cascade reaches the **Root** and the *Root itself splits*,
+ * we create a **NEW, empty root** node.
+ * -   This new root will contain the single key promoted from the old root.
+ * -   The new root's two children will be the L and R nodes created
+ * from splitting the old root.
+ * -   This is the *only* way the B+ Tree increases in height.
+ *
+ * --- Implementation Notes ---
+ *
+ * 1.  **Parent Pointer:** For the cascade (Step 4) to work, every child node
+ * *must* have a pointer/reference to its parent node.
+ *
+ */
+
 func (t *BpTreeRootNode) Insert(key int, val string) error {
 	inodeidx := t.findInternalPredecessor(key)
 
@@ -85,27 +126,6 @@ func (t *BpTreeRootNode) Insert(key int, val string) error {
 
 		if inodeidx+1 <= MAX_SIZE {
 			if len(t.Children) >= inodeidx+1 {
-				// how should this traversal happen ?
-				/**
-				The issue is for max size of 4 we. have 4 internal nodesa
-
-				1.        6.         10.          15 <-internal nodes
-
-				1 3 4 5     6 7 8 9    10 11 12 13     15 16 <- leaf nodes
-
-				Mmy tree still has some space but. if I want to insert key 2
-				it will cause cascade effect in all the other internal nodes how should. I handle this?
-
-				Answer:
-
-				When internal node size > MAX_SIZE
-				- We split internal node
-				- We update parent node with the the splitted nodes
-				- In case parent also reaches max size we split parent too
-					- For single level internal nodes we will return error
-					- For multi level internal nodes we will split parent too
-						- This will also require parent reference in child node
-				*/
 			}
 		}
 
