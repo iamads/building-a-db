@@ -637,3 +637,469 @@ func TestInsert(t *testing.T) {
 		})
 	}
 }
+
+// ========== GET METHOD TESTS ==========
+
+// TestGet_HappyPath tests successful retrieval scenarios
+func TestGet_HappyPath(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupTree     func() *BpTreeRootNode
+		key           int
+		expectedValue string
+		expectError   bool
+	}{
+		{
+			name: "Get single key from simple tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				return tree
+			},
+			key:           10,
+			expectedValue: "value10",
+			expectError:   false,
+		},
+		{
+			name: "Get key from tree with multiple insertions",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:           20,
+			expectedValue: "value20",
+			expectError:   false,
+		},
+		{
+			name: "Get first key in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:           10,
+			expectedValue: "value10",
+			expectError:   false,
+		},
+		{
+			name: "Get last key in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:           30,
+			expectedValue: "value30",
+			expectError:   false,
+		},
+		{
+			name: "Get key from tree with multiple internal nodes",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				// Create enough insertions to trigger multiple internal nodes
+				for i := 0; i < 10; i++ {
+					tree.Insert(i*10, fmt.Sprintf("value%d", i*10))
+				}
+				return tree
+			},
+			key:           50,
+			expectedValue: "value50",
+			expectError:   false,
+		},
+		{
+			name: "Get key after node split",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				tree.Insert(40, "value40")
+				tree.Insert(25, "value25") // Triggers split
+				return tree
+			},
+			key:           25,
+			expectedValue: "value25",
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := tt.setupTree()
+			value, err := tree.Get(tt.key)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if !tt.expectError && value != tt.expectedValue {
+				t.Errorf("Expected value %s, got %s", tt.expectedValue, value)
+			}
+		})
+	}
+}
+
+// TestGet_BasicIssues tests common error scenarios
+func TestGet_BasicIssues(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupTree   func() *BpTreeRootNode
+		key         int
+		expectError bool
+		description string
+	}{
+		{
+			name: "Get from empty tree",
+			setupTree: func() *BpTreeRootNode {
+				return NewBpTree()
+			},
+			key:         10,
+			expectError: true,
+			description: "Should error when getting from empty tree",
+		},
+		{
+			name: "Get non-existent key from populated tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:         25,
+			expectError: true,
+			description: "Should error when key doesn't exist",
+		},
+		{
+			name: "Get key smaller than all keys in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:         5,
+			expectError: true,
+			description: "Should error when key is smaller than all keys",
+		},
+		{
+			name: "Get key larger than all keys in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:         40,
+			expectError: true,
+			description: "Should error when key is larger than all keys",
+		},
+		{
+			name: "Get from tree with single internal node",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				return tree
+			},
+			key:         20,
+			expectError: true,
+			description: "Should error when key doesn't exist in single internal node",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := tt.setupTree()
+			value, err := tree.Get(tt.key)
+
+			if tt.expectError && err == nil {
+				t.Errorf("%s: Expected error but got none, value=%s", tt.description, value)
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("%s: Unexpected error: %v", tt.description, err)
+			}
+		})
+	}
+}
+
+// TestGet_EdgeCases tests edge case scenarios
+func TestGet_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name          string
+		setupTree     func() *BpTreeRootNode
+		key           int
+		expectedValue string
+		expectError   bool
+		description   string
+	}{
+		{
+			name: "Get with math.MinInt key",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(math.MinInt, "minValue")
+				tree.Insert(0, "value0")
+				tree.Insert(100, "value100")
+				return tree
+			},
+			key:           math.MinInt,
+			expectedValue: "minValue",
+			expectError:   false,
+			description:   "Should retrieve minimum integer key",
+		},
+		{
+			name: "Get with math.MaxInt key",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(0, "value0")
+				tree.Insert(100, "value100")
+				tree.Insert(math.MaxInt, "maxValue")
+				return tree
+			},
+			key:           math.MaxInt,
+			expectedValue: "maxValue",
+			expectError:   false,
+			description:   "Should retrieve maximum integer key",
+		},
+		{
+			name: "Get when internal nodes are at MAX_SIZE",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				tree.Insert(40, "value40")
+				return tree
+			},
+			key:           30,
+			expectedValue: "value30",
+			expectError:   false,
+			description:   "Should retrieve key when internal node is at MAX_SIZE",
+		},
+		{
+			name: "Get zero key",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(-10, "valueMinus10")
+				tree.Insert(0, "value0")
+				tree.Insert(10, "value10")
+				return tree
+			},
+			key:           0,
+			expectedValue: "value0",
+			expectError:   false,
+			description:   "Should retrieve zero key",
+		},
+		{
+			name: "Get negative key",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(-50, "valueMinus50")
+				tree.Insert(-10, "valueMinus10")
+				tree.Insert(10, "value10")
+				return tree
+			},
+			key:           -10,
+			expectedValue: "valueMinus10",
+			expectError:   false,
+			description:   "Should retrieve negative key",
+		},
+		{
+			name: "Get with duplicate keys - retrieves first occurrence",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10_first")
+				tree.Insert(10, "value10_second")
+				tree.Insert(20, "value20")
+				tree.PrettyPrint()
+				return tree
+			},
+			key:           10,
+			expectedValue: "value10_first",
+			expectError:   false,
+			description:   "Should retrieve first occurrence of duplicate key",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := tt.setupTree()
+			value, err := tree.Get(tt.key)
+
+			if tt.expectError && err == nil {
+				t.Errorf("%s: Expected error but got none, value=%s", tt.description, value)
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("%s: Unexpected error: %v", tt.description, err)
+			}
+			if !tt.expectError && value != tt.expectedValue {
+				t.Errorf("%s: Expected value %s, got %s", tt.description, tt.expectedValue, value)
+			}
+		})
+	}
+}
+
+// ========== SEARCH METHOD TESTS ==========
+
+// TestInternalNodeSearch_HappyPath tests the search method on internal nodes
+func TestInternalNodeSearch_HappyPath(t *testing.T) {
+	tests := []struct {
+		name          string
+		node          *BpTreeInternalNode
+		searchKey     int
+		expectedValue string
+		expectError   bool
+	}{
+		{
+			name: "Search existing key in middle",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 10, Value: "value10"},
+					{Key: 20, Value: "value20"},
+					{Key: 30, Value: "value30"},
+				},
+			},
+			searchKey:     20,
+			expectedValue: "value20",
+			expectError:   false,
+		},
+		{
+			name: "Search first key",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 10, Value: "value10"},
+					{Key: 20, Value: "value20"},
+				},
+			},
+			searchKey:     10,
+			expectedValue: "value10",
+			expectError:   false,
+		},
+		{
+			name: "Search last key",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 10, Value: "value10"},
+					{Key: 20, Value: "value20"},
+					{Key: 30, Value: "value30"},
+				},
+			},
+			searchKey:     30,
+			expectedValue: "value30",
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			leaf, err := tt.node.search(tt.searchKey)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+			if !tt.expectError && leaf.Value != tt.expectedValue {
+				t.Errorf("Expected value %s, got %s", tt.expectedValue, leaf.Value)
+			}
+		})
+	}
+}
+
+// TestInternalNodeSearch_Issues tests bug scenarios in search method
+func TestInternalNodeSearch_Issues(t *testing.T) {
+	tests := []struct {
+		name        string
+		node        *BpTreeInternalNode
+		searchKey   int
+		expectError bool
+		description string
+	}{
+		{
+			name: "FAILING: Search in empty internal node - panic",
+			node: &BpTreeInternalNode{
+				Key:      10,
+				Children: []*BpTreeLeafNode{},
+			},
+			searchKey:   10,
+			expectError: true,
+			description: "BUG: search() panics when Children slice is empty due to len(t.Children)-1",
+		},
+		{
+			name: "Search key greater than last child",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 10, Value: "value10"},
+					{Key: 20, Value: "value20"},
+				},
+			},
+			searchKey:   30,
+			expectError: true,
+			description: "Should error when key is greater than last child",
+		},
+		{
+			name: "FAILING: Search key less than first child",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 20, Value: "value20"},
+					{Key: 30, Value: "value30"},
+				},
+			},
+			searchKey:   15,
+			expectError: true,
+			description: "BUG: search() doesn't properly handle key less than first child",
+		},
+		{
+			name: "Search non-existent key between existing keys",
+			node: &BpTreeInternalNode{
+				Key: 10,
+				Children: []*BpTreeLeafNode{
+					{Key: 10, Value: "value10"},
+					{Key: 30, Value: "value30"},
+				},
+			},
+			searchKey:   20,
+			expectError: true,
+			description: "Should error when key doesn't exist in range",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r != nil {
+					if !tt.expectError {
+						t.Errorf("%s: Unexpected panic: %v", tt.description, r)
+					} else {
+						t.Logf("%s: Expected panic occurred: %v", tt.description, r)
+					}
+				}
+			}()
+
+			_, err := tt.node.search(tt.searchKey)
+
+			if tt.expectError && err == nil {
+				t.Errorf("%s: Expected error but got none", tt.description)
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("%s: Unexpected error: %v", tt.description, err)
+			}
+		})
+	}
+}

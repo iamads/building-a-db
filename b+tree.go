@@ -205,8 +205,19 @@ func (t *BpTreeInternalNode) isFull() bool {
 func (t *BpTreeInternalNode) addLeafNode(key int, val string) {
 	toInsertIdx := 0
 
+	// we are adding a duplicate value
 	if key == t.Key {
-		toInsertIdx = 0
+		if len(t.Children) == 1 {
+			toInsertIdx = 1
+		} else {
+			for i, val := range t.Children {
+				if val.Key != key {
+					toInsertIdx = i
+					break
+				}
+			}
+		}
+
 	}
 
 	if len(t.Children) > 0 && key > t.Children[len(t.Children)-1].Key {
@@ -223,4 +234,36 @@ func (t *BpTreeInternalNode) addLeafNode(key int, val string) {
 	t.Children = append(t.Children, &BpTreeLeafNode{})
 	copy(t.Children[toInsertIdx+1:], t.Children[toInsertIdx:])
 	t.Children[toInsertIdx] = &BpTreeLeafNode{Key: key, Value: val}
+}
+
+func (t *BpTreeInternalNode) search(key int) (*BpTreeLeafNode, error) {
+	if len(t.Children) == 0 {
+		return nil, fmt.Errorf("Incorrect internal node created with no children")
+	}
+
+	if key > t.Children[len(t.Children)-1].Key {
+		return nil, fmt.Errorf("Leaf node not found for key=(%d)", key)
+	}
+
+	for _, val := range t.Children {
+		if val.Key == key {
+			return val, nil
+		}
+	}
+
+	return nil, fmt.Errorf("Leaf node not found for key=(%d)", key)
+}
+
+func (t *BpTreeRootNode) Get(key int) (string, error) {
+	index := t.findInternalPredecessor(key)
+	if index == -1 {
+		return "", fmt.Errorf("This key does not exist %d", key)
+	}
+
+	inode := t.Children[index]
+	lnode, err := inode.search(key)
+	if err != nil {
+		return "", fmt.Errorf("This key does not exist %d", key)
+	}
+	return lnode.Value, nil
 }

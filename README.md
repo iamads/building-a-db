@@ -15,17 +15,18 @@ B+tree principles:
 # Goal 1
 
 - [ ] Building a in memory B+tree, which allows us to do insert, delete, get operation, range queries etc
-  - [ ] We use separate intermediate nodes, and leaf nodes .... should I also have a seaparate root node?
-  - [ ] We should define node size as constant, but later on move to allowing the user to decrare the size
-  - [ ] Pretty print the tree
+  - [*] We use separate intermediate nodes, and leaf nodes .... should I also have a seaparate root node?
+  - [*] We should define node size as constant,
+  - [ ]  Later on move to allowing the user to decrare the size
+  - [*] Pretty print the tree
   - [ ] Insert
-    - [ ] Find the correct intermediate node: only 1 level except root
-    - [ ] If intermediate node does not exist insert intermediate node: only 1 level except root
-      - [ ] At this point we need to think about should we redistribute intermediate nodes or not
+    - [*] Find the correct intermediate node: only 1 level except root
+    - [*] If intermediate node does not exist insert intermediate node: only 1 level except root
+      - [*] At this point we need to think about should we redistribute intermediate nodes or not
     - [ ] If insertion of intermediate node  causes us to hit limit on parent, we have to introduce another level: Multilevel
-      - [ ] Do we rebalance nodes b/w different nodes?
-  - [ ] Get
-    - [ ] Get element by particular id
+      - [ ] ~~Do we rebalance nodes b/w different nodes?~~
+  - [*] Get
+    - [*] Get element by particular id
     - [ ] get element by range queries
   - [ ] Delete
     - [ ] Delete key
@@ -52,3 +53,6 @@ B+tree principles:
 
 
 
+# Notes
+- reference this :https://github.com/cockroachdb/cockroach/blob/master/CLAUDE.md
+- bazel ? -> https://www.youtube.com/watch?v=YiX0NpKL7ag

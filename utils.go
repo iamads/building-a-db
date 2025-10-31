@@ -45,7 +45,7 @@ func (root *BpTreeRootNode) PrettyPrint() {
 	// Build leaf node strings
 	var leafNodes []string
 	for _, leaf := range allLeaves {
-		leafNodes = append(leafNodes, fmt.Sprintf("L[%d]", leaf.key))
+		leafNodes = append(leafNodes, fmt.Sprintf("L[%d][%s]", leaf.key, leaf.value))
 	}
 
 	// Calculate positions
