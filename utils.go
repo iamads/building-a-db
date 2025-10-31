@@ -1,49 +1,79 @@
 package main
 
-// import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-// // PrettyPrint prints the B-tree structure in a visually appealing format
-// func (bp *BpTreeNode) PrettyPrint() {
-// 	if bp == nil {
-// 		println("Tree is empty")
-// 		return
-// 	}
+// PrettyPrint prints the B+Tree structure in a vertical format
+// Root node at top, internal nodes in middle, leaf nodes at bottom
+func (root *BpTreeRootNode) PrettyPrint() {
+	if root == nil {
+		fmt.Println("Tree is empty (nil)")
+		return
+	}
 
-// 	printBpTree(bp, "", true)
-// }
+	if len(root.Children) == 0 {
+		fmt.Println("Tree is empty (no children)")
+		return
+	}
 
-// // Helper function to recursively print the tree structure
-// func printBpTree(node *BpTreeNode, prefix string, isLast bool) {
-// 	if node == nil {
-// 		return
-// 	}
+	fmt.Println("┌─────────────────────────────────────────┐")
+	fmt.Println("│            B+Tree Structure             │")
+	fmt.Println("└─────────────────────────────────────────┘")
+	fmt.Println()
 
-// 	// Print the current node
-// 	var connector string
-// 	if isLast {
-// 		connector = "└── "
-// 	} else {
-// 		connector = "├── "
-// 	}
+	// Print Root Node
+	fmt.Println("ROOT NODE:")
+	fmt.Printf("  Number of internal nodes: %d\n", len(root.Children))
 
-// 	if node.Key != 0 { // Only print non-zero Keys (assuming 0 is placeholder)
-// 		fmt.Printf("%s%s[%d]\n", prefix, connector, node.Key)
-// 	}
+	// Collect internal node keys for display
+	internalKeys := make([]int, len(root.Children))
+	for i, child := range root.Children {
+		internalKeys[i] = child.Key
+	}
+	fmt.Printf("  Internal node keys: %v\n", internalKeys)
+	fmt.Println()
 
-// 	// Print children
-// 	children := node.Children
-// 	if len(children) > 0 {
-// 		// Extend the prefix for children
-// 		var childPrefix string
-// 		if isLast {
-// 			childPrefix = prefix + "    "
-// 		} else {
-// 			childPrefix = prefix + "│   "
-// 		}
+	// Print Internal Nodes
+	fmt.Println("INTERNAL NODES:")
+	fmt.Println(strings.Repeat("─", 60))
 
-// 		for i, child := range children {
-// 			isLastChild := i == len(children)-1
-// 			printBpTree(child, childPrefix, isLastChild)
-// 		}
-// 	}
-// }
+	for i, inode := range root.Children {
+		fmt.Printf("\n[Internal Node %d] Key: %d\n", i, inode.Key)
+		fmt.Printf("  └─ Leaf count: %d\n", len(inode.Children))
+
+		if len(inode.Children) > 0 {
+			fmt.Print("  └─ Leaf keys: [")
+			for j, leaf := range inode.Children {
+				if j > 0 {
+					fmt.Print(", ")
+				}
+				fmt.Printf("%d", leaf.Key)
+			}
+			fmt.Println("]")
+		}
+	}
+
+	fmt.Println()
+
+	// Print Leaf Nodes
+	fmt.Println("LEAF NODES:")
+	fmt.Println(strings.Repeat("─", 60))
+
+	leafCount := 0
+	for inodeIdx, inode := range root.Children {
+		if len(inode.Children) > 0 {
+			fmt.Printf("\n[Internal Node %d - Key: %d] Leaves:\n", inodeIdx, inode.Key)
+			for leafIdx, leaf := range inode.Children {
+				fmt.Printf("  %d. Key: %-10d Value: %s\n", leafIdx+1, leaf.Key, leaf.Value)
+				leafCount++
+			}
+		}
+	}
+
+	fmt.Println()
+	fmt.Println(strings.Repeat("═", 60))
+	fmt.Printf("Total: %d internal nodes, %d leaf nodes\n", len(root.Children), leafCount)
+	fmt.Println(strings.Repeat("═", 60))
+}

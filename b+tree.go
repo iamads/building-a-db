@@ -118,12 +118,24 @@ func (t *BpTreeRootNode) Insert(key int, val string) error {
 		inode := t.Children[inodeidx]
 		if inode.isFull() {
 			// If root has space we will split current node
-			if len(t.Children) == MAX_SIZE {
-				original, next := splitInode2(inode)
-				t.Children[inodeidx] = original
-				t.Children = append(t.Children, &BpTreeInternalNode{})
-				copy(t.Children[inodeidx+2:], t.Children[inodeidx+1:])
-				t.Children[inodeidx+1] = next
+			if len(t.Children) != MAX_SIZE {
+
+				if inodeidx == len(t.Children)-1 && inodeidx < MAX_SIZE-1 {
+					// We. are checking internal node selected although full is the last internal node
+					// and thehre is space to create internal node and. put data. there
+					// This would fully utilise our space
+					newInode := createNewInternalNode(key)
+					newInode.addLeafNode(key, val)
+					t.Children = append(t.Children, newInode)
+				} else {
+					// If the internal node is full but not the lalst our only option is to split
+					original, next := splitInode2(inode)
+					t.Children[inodeidx] = original
+					t.Children = append(t.Children, &BpTreeInternalNode{})
+					copy(t.Children[inodeidx+2:], t.Children[inodeidx+1:])
+					t.Children[inodeidx+1] = next
+				}
+
 			} else {
 				// else we return error
 				return fmt.Errorf("Can't create new internal node for key=(%d) and val=(%s)", key, val)
@@ -135,6 +147,8 @@ func (t *BpTreeRootNode) Insert(key int, val string) error {
 
 	return nil
 }
+
+// splits internal node into 2 internal nodes
 
 func splitInode2(inode *BpTreeInternalNode) (*BpTreeInternalNode, *BpTreeInternalNode) {
 	q := MAX_SIZE / 2
