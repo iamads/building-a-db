@@ -84,6 +84,8 @@ func TestFindInternalPredecessor(t *testing.T) {
 // 	}
 // }
 
+// DumpStruct prints the exported fields of any struct (recursively).
+
 func TestAddLeafNode(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -96,7 +98,7 @@ func TestAddLeafNode(t *testing.T) {
 		{
 			name: "Insert at beginning",
 			node: &BpTreeInternalNode{
-				Key: 10,
+				Key: 15,
 				Children: []*BpTreeLeafNode{
 					{Key: 15, Value: "value15"},
 					{Key: 20, Value: "value20"},
@@ -110,7 +112,7 @@ func TestAddLeafNode(t *testing.T) {
 		{
 			name: "Insert in middle",
 			node: &BpTreeInternalNode{
-				Key: 10,
+				Key: 5,
 				Children: []*BpTreeLeafNode{
 					{Key: 5, Value: "value5"},
 					{Key: 15, Value: "value15"},
@@ -124,7 +126,7 @@ func TestAddLeafNode(t *testing.T) {
 		{
 			name: "Insert at end",
 			node: &BpTreeInternalNode{
-				Key: 10,
+				Key: 5,
 				Children: []*BpTreeLeafNode{
 					{Key: 5, Value: "value5"},
 					{Key: 10, Value: "value10"},
@@ -138,7 +140,7 @@ func TestAddLeafNode(t *testing.T) {
 		{
 			name: "Key equals internal node key",
 			node: &BpTreeInternalNode{
-				Key: 10,
+				Key: 15,
 				Children: []*BpTreeLeafNode{
 					{Key: 15, Value: "value15"},
 				},
@@ -1020,7 +1022,7 @@ func TestInternalNodeSearch_HappyPath(t *testing.T) {
 	}
 }
 
-// TestInternalNodeSearch_Issues tests bug scenarios in search method
+// TODO: fix buggy internal node search
 func TestInternalNodeSearch_Issues(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -1037,7 +1039,7 @@ func TestInternalNodeSearch_Issues(t *testing.T) {
 			},
 			searchKey:   10,
 			expectError: true,
-			description: "BUG: search() panics when Children slice is empty due to len(t.Children)-1",
+			description: "TODO BUGGY: search() panics when Children slice is empty due to len(t.Children)-1",
 		},
 		{
 			name: "Search key greater than last child",
@@ -1063,7 +1065,7 @@ func TestInternalNodeSearch_Issues(t *testing.T) {
 			},
 			searchKey:   15,
 			expectError: true,
-			description: "BUG: search() doesn't properly handle key less than first child",
+			description: "TODO BUGGY: search() doesn't properly handle key less than first child",
 		},
 		{
 			name: "Search non-existent key between existing keys",

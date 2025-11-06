@@ -37,6 +37,7 @@ type BpTreeInternalNode struct {
 type BpTreeLeafNode struct {
 	Key   int
 	Value string
+	Next  *BpTreeLeafNode
 }
 
 // New Bptree root node will create a new BpTreeRootNode
@@ -101,6 +102,17 @@ Insertion flow (single level)
  *
  */
 
+func safelyManageNextBoundaryLeafNodes(leafidx, internalidx int, leafNode *BpTreeLeafNode, internalNodeParent *BpTreeRootNode) {
+	if internalidx > 0 && leafidx == 0 {
+		prev_internal_node := internalNodeParent.Children[internalidx-1]
+		prev_internal_node.Children[len(prev_internal_node.Children)-1].Next = leafNode
+	}
+
+	if internalidx == 0 && leafidx == len(internalNodeParent.Children[0].Children)-1 && len(internalNodeParent.Children) > 1 { // It is leafidx is last leaf for firstinternal node
+		leafNode.Next = internalNodeParent.Children[1].Children[0]
+	}
+}
+
 func (t *BpTreeRootNode) Insert(key int, val string) error {
 	inodeidx := t.findInternalPredecessor(key)
 
@@ -112,21 +124,23 @@ func (t *BpTreeRootNode) Insert(key int, val string) error {
 		t.Children = append(t.Children, &BpTreeInternalNode{})
 		copy(t.Children[1:], t.Children[:len(t.Children)-1])
 		newInode := createNewInternalNode(key)
-		newInode.addLeafNode(key, val)
+		newLeafIdx, newLeaf := newInode.addLeafNode(key, val)
 		t.Children[0] = newInode
+		safelyManageNextBoundaryLeafNodes(newLeafIdx, 0, newLeaf, t)
 	} else {
 		inode := t.Children[inodeidx]
 		if inode.isFull() {
 			// If root has space we will split current node
 			if len(t.Children) != MAX_SIZE {
 
-				if inodeidx == len(t.Children)-1 && inodeidx < MAX_SIZE-1 {
+				if inodeidx == len(t.Children)-1 && inodeidx < MAX_SIZE-1 && inode.lastChild() != nil && inode.lastChild().Key < key {
 					// We. are checking internal node selected although full is the last internal node
 					// and thehre is space to create internal node and. put data. there
 					// This would fully utilise our space
 					newInode := createNewInternalNode(key)
-					newInode.addLeafNode(key, val)
 					t.Children = append(t.Children, newInode)
+					newLeafIdx, newLeaf := newInode.addLeafNode(key, val)
+					safelyManageNextBoundaryLeafNodes(newLeafIdx, inodeidx+1, newLeaf, t)
 				} else {
 					// If the internal node is full but not the lalst our only option is to split
 					original, next := splitInode2(inode)
@@ -134,6 +148,17 @@ func (t *BpTreeRootNode) Insert(key int, val string) error {
 					t.Children = append(t.Children, &BpTreeInternalNode{})
 					copy(t.Children[inodeidx+2:], t.Children[inodeidx+1:])
 					t.Children[inodeidx+1] = next
+
+					var lidx, splitinodeidx int
+					var lnode *BpTreeLeafNode
+					if key < next.Key {
+						lidx, lnode = original.addLeafNode(key, val)
+						splitinodeidx = inodeidx
+					} else {
+						lidx, lnode = next.addLeafNode(key, val)
+						splitinodeidx = inodeidx + 1
+					}
+					safelyManageNextBoundaryLeafNodes(lidx, splitinodeidx, lnode, t)
 				}
 
 			} else {
@@ -141,7 +166,8 @@ func (t *BpTreeRootNode) Insert(key int, val string) error {
 				return fmt.Errorf("Can't create new internal node for key=(%d) and val=(%s)", key, val)
 			}
 		} else {
-			inode.addLeafNode(key, val)
+			newLeafIdx, newLeaf := inode.addLeafNode(key, val)
+			safelyManageNextBoundaryLeafNodes(newLeafIdx, inodeidx, newLeaf, t)
 		}
 	}
 
@@ -157,10 +183,12 @@ func splitInode2(inode *BpTreeInternalNode) (*BpTreeInternalNode, *BpTreeInterna
 	nextChildren := inode.Children[q:]
 
 	original := createNewInternalNode(originalChildren[0].Key)
-	original.Children = originalChildren
+	original.Children = make([]*BpTreeLeafNode, len(originalChildren))
+	copy(original.Children, originalChildren)
 
 	next := createNewInternalNode(nextChildren[0].Key)
-	next.Children = nextChildren
+	next.Children = make([]*BpTreeLeafNode, len(nextChildren))
+	copy(next.Children, nextChildren)
 
 	return original, next
 
@@ -202,7 +230,14 @@ func (t *BpTreeInternalNode) isFull() bool {
 	return len(t.Children) == MAX_SIZE
 }
 
-func (t *BpTreeInternalNode) addLeafNode(key int, val string) {
+func (t *BpTreeInternalNode) lastChild() *BpTreeLeafNode {
+	if len(t.Children) == 0 {
+		return nil
+	}
+	return t.Children[len(t.Children)-1]
+}
+
+func (t *BpTreeInternalNode) addLeafNode(key int, val string) (int, *BpTreeLeafNode) {
 	toInsertIdx := 0
 
 	// we are adding a duplicate value
@@ -218,22 +253,36 @@ func (t *BpTreeInternalNode) addLeafNode(key int, val string) {
 			}
 		}
 
-	}
+	} else {
+		if len(t.Children) > 0 && key > t.Children[len(t.Children)-1].Key {
+			toInsertIdx = len(t.Children)
+		}
 
-	if len(t.Children) > 0 && key > t.Children[len(t.Children)-1].Key {
-		toInsertIdx = len(t.Children)
-	}
-
-	for i, v := range t.Children {
-		if v.Key > key {
-			toInsertIdx = i
-			break
+		for i, v := range t.Children {
+			if v.Key > key {
+				toInsertIdx = i
+				break
+			}
 		}
 	}
 
 	t.Children = append(t.Children, &BpTreeLeafNode{})
 	copy(t.Children[toInsertIdx+1:], t.Children[toInsertIdx:])
-	t.Children[toInsertIdx] = &BpTreeLeafNode{Key: key, Value: val}
+	newLeafNode := &BpTreeLeafNode{Key: key, Value: val}
+	t.Children[toInsertIdx] = newLeafNode
+	// handle the Next pointing
+
+	if toInsertIdx > 0 {
+		prevLeafNode := t.Children[toInsertIdx-1]
+		newLeafNode.Next = prevLeafNode.Next
+		prevLeafNode.Next = newLeafNode
+	} else {
+		if len(t.Children) > 1 {
+			newLeafNode.Next = t.Children[1]
+		}
+	}
+
+	return toInsertIdx, newLeafNode
 }
 
 func (t *BpTreeInternalNode) search(key int) (*BpTreeLeafNode, error) {
@@ -267,3 +316,9 @@ func (t *BpTreeRootNode) Get(key int) (string, error) {
 	}
 	return lnode.Value, nil
 }
+
+// Includes start but not end
+
+// func (t *BpTreeRootNode) GetRange(start int, end int) ([]string, error) {
+
+// }
