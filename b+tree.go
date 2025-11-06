@@ -253,10 +253,9 @@ func (t *BpTreeInternalNode) addLeafNode(key int, val string) (int, *BpTreeLeafN
 			}
 		}
 
+	} else if len(t.Children) > 0 && key >= t.Children[len(t.Children)-1].Key {
+		toInsertIdx = len(t.Children)
 	} else {
-		if len(t.Children) > 0 && key > t.Children[len(t.Children)-1].Key {
-			toInsertIdx = len(t.Children)
-		}
 
 		for i, v := range t.Children {
 			if v.Key > key {
@@ -319,6 +318,32 @@ func (t *BpTreeRootNode) Get(key int) (string, error) {
 
 // Includes start but not end
 
-// func (t *BpTreeRootNode) GetRange(start int, end int) ([]string, error) {
+func (t *BpTreeRootNode) GetRange(start int, end int) ([]string, error) {
+	if start > end {
+		return []string{}, fmt.Errorf("start=(%d) is greter than end=(%d)", start, end)
+	}
+	if len(t.Children) == 0 {
+		return []string{}, fmt.Errorf("Empty tree")
+	}
+	inodeidx := t.findInternalPredecessor(start)
+	if inodeidx == -1 {
+		inodeidx = 0
+	}
+	inode := t.Children[inodeidx]
+	var lnode *BpTreeLeafNode
+	var res []string
 
-// }
+	for _, val := range inode.Children {
+		if val.Key >= start {
+			lnode = val
+			break
+		}
+	}
+
+	for lnode != nil && lnode.Key < end {
+		res = append(res, lnode.Value)
+		lnode = lnode.Next
+	}
+
+	return res, nil
+}

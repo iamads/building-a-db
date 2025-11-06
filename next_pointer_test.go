@@ -448,7 +448,7 @@ func TestNextPointer_SpecificScenarios(t *testing.T) {
 
 // TestNextPointer_IdentifiedBugs tests for specific bugs found in implementation
 func TestNextPointer_IdentifiedBugs(t *testing.T) {
-	t.Run("FAILING: safelyManageNextBoundaryLeafNodes bug - replaces child instead of updating Next", func(t *testing.T) {
+	t.Run("safelyManageNextBoundaryLeafNodes bug - replaces child instead of updating Next", func(t *testing.T) {
 		tree := NewBpTree()
 
 		// Insert keys that will create at least 2 internal nodes
@@ -486,7 +486,7 @@ func TestNextPointer_IdentifiedBugs(t *testing.T) {
 		}
 	})
 
-	t.Run("FAILING: addLeafNode doesn't set Next when inserting at position 0", func(t *testing.T) {
+	t.Run("addLeafNode doesn't set Next when inserting at position 0", func(t *testing.T) {
 		tree := NewBpTree()
 
 		// First insert
@@ -507,7 +507,7 @@ func TestNextPointer_IdentifiedBugs(t *testing.T) {
 		verifyNextChain(t, tree, []int{10, 20, 30})
 	})
 
-	t.Run("FAILING: Node split doesn't preserve Next pointers", func(t *testing.T) {
+	t.Run("Node split doesn't preserve Next pointers", func(t *testing.T) {
 		tree := NewBpTree()
 
 		// Fill to trigger a split
@@ -537,7 +537,7 @@ func TestNextPointer_IdentifiedBugs(t *testing.T) {
 		}
 	})
 
-	t.Run("FAILING: Insert into second internal node at position 0 doesn't update previous inode", func(t *testing.T) {
+	t.Run("Insert into second internal node at position 0 doesn't update previous inode", func(t *testing.T) {
 		tree := NewBpTree()
 
 		// Create scenario with 2 internal nodes
@@ -578,7 +578,7 @@ func TestNextPointer_IdentifiedBugs(t *testing.T) {
 		}
 	})
 
-	t.Run("FAILING: Empty internal node children scenario", func(t *testing.T) {
+	t.Run("Empty internal node children scenario", func(t *testing.T) {
 		// This tests the case where addLeafNode might be called on a fresh internal node
 		tree := NewBpTree()
 		tree.Insert(10, "value10")
@@ -591,7 +591,7 @@ func TestNextPointer_IdentifiedBugs(t *testing.T) {
 		}
 	})
 
-	t.Run("FAILING: Cross-boundary link not established when creating new first internal node", func(t *testing.T) {
+	t.Run("Cross-boundary link not established when creating new first internal node", func(t *testing.T) {
 		tree := NewBpTree()
 
 		// Create existing internal node
