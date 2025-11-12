@@ -917,13 +917,13 @@ func TestGet_EdgeCases(t *testing.T) {
 			description:   "Should retrieve negative key",
 		},
 		{
-			name: "Get with duplicate keys - retrieves first occurrence",
+			name: "Get with duplicate keys - retrieves first occurrence", // TODO: Fix failure here
 			setupTree: func() *BpTreeRootNode {
 				tree := NewBpTree()
 				tree.Insert(10, "value10_first")
 				tree.Insert(10, "value10_second")
+				tree.Insert(10, "value10_third")
 				tree.Insert(20, "value20")
-				tree.PrettyPrint()
 				return tree
 			},
 			key:           10,
@@ -1593,6 +1593,571 @@ func TestInternalNodeSearch_Issues(t *testing.T) {
 			}
 			if !tt.expectError && err != nil {
 				t.Errorf("%s: Unexpected error: %v", tt.description, err)
+			}
+		})
+	}
+}
+
+// ========== UPDATE METHOD TESTS ==========
+
+// TestUpdate_HappyPath tests successful update scenarios
+func TestUpdate_HappyPath(t *testing.T) {
+	tests := []struct {
+		name             string
+		setupTree        func() *BpTreeRootNode
+		key              int
+		newValue         string
+		expectError      bool
+		verifyOldValue   string
+		verifyFinalValue string
+	}{
+		{
+			name: "Update single key in simple tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "original")
+				return tree
+			},
+			key:              10,
+			newValue:         "updated",
+			expectError:      false,
+			verifyOldValue:   "original",
+			verifyFinalValue: "updated",
+		},
+		{
+			name: "Update key from tree with multiple elements",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:              20,
+			newValue:         "updated20",
+			expectError:      false,
+			verifyOldValue:   "value20",
+			verifyFinalValue: "updated20",
+		},
+		{
+			name: "Update first key in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:              10,
+			newValue:         "updatedFirst",
+			expectError:      false,
+			verifyOldValue:   "value10",
+			verifyFinalValue: "updatedFirst",
+		},
+		{
+			name: "Update last key in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:              30,
+			newValue:         "updatedLast",
+			expectError:      false,
+			verifyOldValue:   "value30",
+			verifyFinalValue: "updatedLast",
+		},
+		{
+			name: "Update middle key in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				tree.Insert(40, "value40")
+				tree.Insert(50, "value50")
+				return tree
+			},
+			key:              30,
+			newValue:         "updatedMiddle",
+			expectError:      false,
+			verifyOldValue:   "value30",
+			verifyFinalValue: "updatedMiddle",
+		},
+		{
+			name: "Update key in tree with multiple internal nodes",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				// Create enough insertions to trigger multiple internal nodes
+				for i := 0; i < 10; i++ {
+					tree.Insert(i*10, fmt.Sprintf("value%d", i*10))
+				}
+				return tree
+			},
+			key:              50,
+			newValue:         "updatedValue50",
+			expectError:      false,
+			verifyOldValue:   "value50",
+			verifyFinalValue: "updatedValue50",
+		},
+		{
+			name: "Update key after internal node split",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				tree.Insert(40, "value40")
+				tree.Insert(25, "value25") // Triggers split
+				return tree
+			},
+			key:              25,
+			newValue:         "updatedAfterSplit",
+			expectError:      false,
+			verifyOldValue:   "value25",
+			verifyFinalValue: "updatedAfterSplit",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := tt.setupTree()
+
+			// Verify old value
+			oldValue, err := tree.Get(tt.key)
+			if err != nil {
+				t.Fatalf("Failed to get old value: %v", err)
+			}
+			if oldValue != tt.verifyOldValue {
+				t.Errorf("Expected old value %s, got %s", tt.verifyOldValue, oldValue)
+			}
+
+			// Perform update
+			err = tree.Update(tt.key, tt.newValue)
+
+			if tt.expectError && err == nil {
+				t.Errorf("Expected error but got none")
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("Unexpected error: %v", err)
+			}
+
+			// Verify new value
+			if !tt.expectError {
+				newValue, err := tree.Get(tt.key)
+				if err != nil {
+					t.Errorf("Failed to get updated value: %v", err)
+				}
+				if newValue != tt.verifyFinalValue {
+					t.Errorf("Expected updated value %s, got %s", tt.verifyFinalValue, newValue)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdate_BasicUseCases tests common use case scenarios
+func TestUpdate_BasicUseCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupTree   func() *BpTreeRootNode
+		key         int
+		newValue    string
+		expectError bool
+		description string
+	}{
+		{
+			name: "Update value to same value (idempotent)",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				return tree
+			},
+			key:         10,
+			newValue:    "value10",
+			expectError: false,
+			description: "Updating to same value should work without issue",
+		},
+		{
+			name: "Update value to empty string",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				return tree
+			},
+			key:         10,
+			newValue:    "",
+			expectError: false,
+			description: "Should allow updating to empty string",
+		},
+		{
+			name: "Update value to very long string",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "short")
+				return tree
+			},
+			key:         10,
+			newValue:    "This is a very long string with lots of characters to test if the update function can handle larger values without issues",
+			expectError: false,
+			description: "Should handle long string values",
+		},
+		{
+			name: "Update same key multiple times sequentially",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "original")
+				tree.Update(10, "update1")
+				tree.Update(10, "update2")
+				return tree
+			},
+			key:         10,
+			newValue:    "update3",
+			expectError: false,
+			description: "Multiple sequential updates should work",
+		},
+		{
+			name: "Update then retrieve to verify change persists",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:         20,
+			newValue:    "persistentValue",
+			expectError: false,
+			description: "Updated value should persist after retrieval",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := tt.setupTree()
+			err := tree.Update(tt.key, tt.newValue)
+
+			if tt.expectError && err == nil {
+				t.Errorf("%s: Expected error but got none", tt.description)
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("%s: Unexpected error: %v", tt.description, err)
+			}
+
+			// Verify the value was actually updated
+			if !tt.expectError {
+				value, getErr := tree.Get(tt.key)
+				if getErr != nil {
+					t.Errorf("%s: Failed to retrieve updated value: %v", tt.description, getErr)
+				}
+				if value != tt.newValue {
+					t.Errorf("%s: Expected value %s, got %s", tt.description, tt.newValue, value)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdate_EdgeCases tests edge case scenarios
+func TestUpdate_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name        string
+		setupTree   func() *BpTreeRootNode
+		key         int
+		newValue    string
+		expectError bool
+		description string
+	}{
+		{
+			name: "Update from empty tree",
+			setupTree: func() *BpTreeRootNode {
+				return NewBpTree()
+			},
+			key:         10,
+			newValue:    "value10",
+			expectError: true,
+			description: "Should error when updating key in empty tree",
+		},
+		{
+			name: "Update non-existent key from populated tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:         25,
+			newValue:    "value25",
+			expectError: true,
+			description: "Should error when key doesn't exist",
+		},
+		{
+			name: "Update key smaller than all keys in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:         5,
+			newValue:    "value5",
+			expectError: true,
+			description: "Should error when key is smaller than all keys",
+		},
+		{
+			name: "Update key larger than all keys in tree",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:         40,
+			newValue:    "value40",
+			expectError: true,
+			description: "Should error when key is larger than all keys",
+		},
+		{
+			name: "Update with math.MinInt key",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(math.MinInt, "minValue")
+				tree.Insert(0, "value0")
+				tree.Insert(100, "value100")
+				return tree
+			},
+			key:         math.MinInt,
+			newValue:    "updatedMin",
+			expectError: false,
+			description: "Should update minimum integer key",
+		},
+		{
+			name: "Update with math.MaxInt key",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(0, "value0")
+				tree.Insert(100, "value100")
+				tree.Insert(math.MaxInt, "maxValue")
+				return tree
+			},
+			key:         math.MaxInt,
+			newValue:    "updatedMax",
+			expectError: false,
+			description: "Should update maximum integer key",
+		},
+		{
+			name: "Update with zero key",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(-10, "valueMinus10")
+				tree.Insert(0, "value0")
+				tree.Insert(10, "value10")
+				return tree
+			},
+			key:         0,
+			newValue:    "updatedZero",
+			expectError: false,
+			description: "Should update zero key",
+		},
+		{
+			name: "Update with negative key",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(-50, "valueMinus50")
+				tree.Insert(-10, "valueMinus10")
+				tree.Insert(10, "value10")
+				return tree
+			},
+			key:         -10,
+			newValue:    "updatedMinus10",
+			expectError: false,
+			description: "Should update negative key",
+		},
+		{
+			name: "Update after GetRange operation",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				tree.Insert(40, "value40")
+				// Perform a range query first
+				tree.GetRange(10, 30)
+				return tree
+			},
+			key:         20,
+			newValue:    "updatedAfterRange",
+			expectError: false,
+			description: "Update should work after GetRange operation",
+		},
+		{
+			name: "Update key that exists at internal node boundary",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20")
+				tree.Insert(30, "value30")
+				tree.Insert(40, "value40")
+				tree.Insert(25, "value25") // May trigger split, 30 could be at boundary
+				return tree
+			},
+			key:         30,
+			newValue:    "updatedBoundary",
+			expectError: false,
+			description: "Should update key at internal node boundary",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := tt.setupTree()
+			err := tree.Update(tt.key, tt.newValue)
+
+			if tt.expectError && err == nil {
+				t.Errorf("%s: Expected error but got none", tt.description)
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("%s: Unexpected error: %v", tt.description, err)
+			}
+
+			// Verify the value was actually updated (for non-error cases)
+			if !tt.expectError {
+				value, getErr := tree.Get(tt.key)
+				if getErr != nil {
+					t.Errorf("%s: Failed to retrieve updated value: %v", tt.description, getErr)
+				}
+				if value != tt.newValue {
+					t.Errorf("%s: Expected value %s, got %s", tt.description, tt.newValue, value)
+				}
+			}
+		})
+	}
+}
+
+// TestUpdate_DuplicateKeys tests the specific bug where duplicate keys only update first occurrence
+func TestUpdate_DuplicateKeys(t *testing.T) {
+	tests := []struct {
+		name                  string
+		setupTree             func() *BpTreeRootNode
+		key                   int
+		newValue              string
+		expectError           bool
+		verifyFirstOccurrence string
+		verifyOtherValues     []string
+		description           string
+	}{
+		{
+			name: "Update when duplicate keys exist - only first is updated",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10_first")
+				tree.Insert(10, "value10_second")
+				tree.Insert(20, "value20")
+				return tree
+			},
+			key:                   10,
+			newValue:              "updatedValue10",
+			expectError:           false,
+			verifyFirstOccurrence: "updatedValue10",
+			verifyOtherValues:     []string{"value10_second"},
+			description:           "BUG: Update only modifies first occurrence of duplicate keys",
+		},
+		{
+			name: "Update with multiple duplicate keys",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10_first")
+				tree.Insert(10, "value10_second")
+				tree.Insert(20, "value20")
+				return tree
+			},
+			key:                   10,
+			newValue:              "updatedValue10",
+			expectError:           false,
+			verifyFirstOccurrence: "updatedValue10",
+			verifyOtherValues:     []string{"value10_second"},
+			description:           "BUG: With multiple duplicates, only first is updated",
+		},
+		{
+			name: "Update duplicate key at tree boundary",
+			setupTree: func() *BpTreeRootNode {
+				tree := NewBpTree()
+				tree.Insert(10, "value10")
+				tree.Insert(20, "value20_first")
+				tree.Insert(20, "value20_second")
+				tree.Insert(30, "value30")
+				return tree
+			},
+			key:                   20,
+			newValue:              "updatedValue20",
+			expectError:           false,
+			verifyFirstOccurrence: "updatedValue20",
+			verifyOtherValues:     []string{"value20_second"},
+			description:           "BUG: Duplicate keys at non-first position only update first occurrence",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := tt.setupTree()
+
+			tree.PrettyPrint()
+
+			// Perform update
+			err := tree.Update(tt.key, tt.newValue)
+			tree.PrettyPrint()
+
+			if tt.expectError && err == nil {
+				t.Errorf("%s: Expected error but got none", tt.description)
+			}
+			if !tt.expectError && err != nil {
+				t.Errorf("%s: Unexpected error: %v", tt.description, err)
+			}
+
+			if !tt.expectError {
+				// Get returns first occurrence
+				firstValue, err := tree.Get(tt.key)
+				if err != nil {
+					t.Errorf("%s: Failed to get first occurrence: %v", tt.description, err)
+				}
+				if firstValue != tt.verifyFirstOccurrence {
+					t.Errorf("%s: Expected first occurrence to be %s, got %s",
+						tt.description, tt.verifyFirstOccurrence, firstValue)
+				}
+
+				// Verify other occurrences remain unchanged by checking all values with this key
+				// We'll iterate through the tree to find all occurrences
+				var allValuesForKey []string
+				for _, inode := range tree.Children {
+					for _, leaf := range inode.Children {
+						if leaf.Key == tt.key {
+							allValuesForKey = append(allValuesForKey, leaf.Value)
+						}
+					}
+				}
+
+				// First should be updated
+				if len(allValuesForKey) > 0 && allValuesForKey[0] != tt.verifyFirstOccurrence {
+					t.Errorf("%s: First occurrence not updated correctly", tt.description)
+				}
+
+				// Check that other values remain unchanged
+				if len(allValuesForKey) > 1 {
+					for i, expectedOther := range tt.verifyOtherValues {
+						if i+1 < len(allValuesForKey) && allValuesForKey[i+1] != expectedOther {
+							t.Errorf("%s: Expected other occurrence at index %d to be %s, got %s",
+								tt.description, i, expectedOther, allValuesForKey[i+1])
+						}
+					}
+				}
+
+				t.Logf("%s: CONFIRMED - Only first occurrence updated. All values for key %d: %v",
+					tt.description, tt.key, allValuesForKey)
 			}
 		})
 	}

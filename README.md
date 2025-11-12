@@ -38,8 +38,8 @@ B+tree principles:
         - [x] Create insertion test cases where we check if next is correctly maintained
   - [ ] Delete
     - [ ] Delete key
-  - [ ] Update
-    - [ ] Update Element
+  - [x] Update
+    - [x] Update Element
   
 
 # Goal 2

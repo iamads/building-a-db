@@ -302,16 +302,24 @@ func (t *BpTreeInternalNode) search(key int) (*BpTreeLeafNode, error) {
 	return nil, fmt.Errorf("Leaf node not found for key=(%d)", key)
 }
 
-func (t *BpTreeRootNode) Get(key int) (string, error) {
+func (t *BpTreeRootNode) get_leaf_node_by_key(key int) (*BpTreeLeafNode, error) {
 	index := t.findInternalPredecessor(key)
 	if index == -1 {
-		return "", fmt.Errorf("This key does not exist %d", key)
+		return nil, fmt.Errorf("This key does not exist %d", key)
 	}
 
 	inode := t.Children[index]
 	lnode, err := inode.search(key)
 	if err != nil {
-		return "", fmt.Errorf("This key does not exist %d", key)
+		return nil, fmt.Errorf("This key does not exist %d", key)
+	}
+	return lnode, nil
+}
+
+func (t *BpTreeRootNode) Get(key int) (string, error) {
+	lnode, err := t.get_leaf_node_by_key(key)
+	if err != nil {
+		return "", fmt.Errorf("Error in get %s", err.Error())
 	}
 	return lnode.Value, nil
 }
@@ -346,4 +354,14 @@ func (t *BpTreeRootNode) GetRange(start int, end int) ([]string, error) {
 	}
 
 	return res, nil
+}
+
+// TODO: We need to have update result struct whcih says this many matched, this many updated , upserted etc
+func (t *BpTreeRootNode) Update(key int, newVal string) error {
+	lnode, err := t.get_leaf_node_by_key(key)
+	if err != nil {
+		return fmt.Errorf("Could not find key=(%d)", key)
+	}
+	lnode.Value = newVal
+	return nil
 }
