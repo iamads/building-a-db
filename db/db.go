@@ -3,6 +3,7 @@ package db
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 )
 
@@ -65,7 +66,7 @@ const (
 
 func assertStatement(assertCond bool, description string) {
 	if !assertCond {
-		fmt.Errorf(description)
+		panic(description)
 	}
 }
 
@@ -306,6 +307,7 @@ func treeInsert(tree *BTree, node BNode, key []byte, val []byte) BNode {
 		//update the kid links
 		nodeReplaceKidN(tree, new, node, idx, split[:nsplit]...)
 	default:
+		fmt.Println()
 		panic("bad node!")
 	}
 
@@ -333,13 +335,39 @@ func nodeReplaceKidN(
 
 // delete a key and returns whenther the key was there
 
-func (tree *BTree) Delete(key []byte) bool {
-	return false
+func (tree *BTree) Delete(key []byte) (bool, error) {
+	if err := checkLimit(key, nil); err != nil {
+		return false, err // the only way for an update to fail
+	}
+
+	if tree.root == 0 {
+		return false, nil
+	}
+
+	updated := treeDelete(tree, tree.get(tree.root), key)
+	if len(updated) == 0 {
+		return false, nil // not found
+	}
+
+	tree.del(tree.root)
+	if updated.btype() == BNODE_NODE && updated.nkeys() == 1 {
+		// remove a level
+		tree.root = updated.getPtr(0)
+	} else {
+		tree.root = tree.new(updated)
+	}
+	return true, nil
 }
 
 func checkLimit(k, v []byte) error {
-	if len(k) > BTREE_MAX_KEY_SIZE || len(v) > BTREE_MAX_VAL_SIZE {
-		return fmt.Errorf("Invalid key/ value pair. Exceeds Max size")
+	if len(k) == 0 {
+		return errors.New("empty key") // used as a dummy key
+	}
+	if len(k) > BTREE_MAX_KEY_SIZE {
+		return errors.New("key too long")
+	}
+	if len(v) > BTREE_MAX_VAL_SIZE {
+		return errors.New("value too long")
 	}
 	return nil
 }
@@ -393,9 +421,12 @@ func nodeMerge(new, left, right BNode) {
 	new.setHeader(left.btype(), left.nkeys()+right.nkeys())
 	nodeAppendRange(new, left, 0, 0, left.nkeys())
 	nodeAppendRange(new, right, left.nkeys(), 0, right.nkeys())
+	// TODO: Should we add an assert here for node size?
 }
 
 // replace 2 adjacent links with 1
+// applicable on internal node
+// ptr is the pointer to the new merged child
 func nodeReplace2Kid(new, old BNode, idx uint16, ptr uint64, key []byte) {
 	assertStatement(old.nkeys() >= 2, "Need at least 2 children to replace")
 	assertStatement(idx+1 < old.nkeys(), "idx+1 must be valid child index")
@@ -477,7 +508,7 @@ func nodeDelete(tree *BTree, node BNode, idx uint16, key []byte) BNode {
 		nodeReplace2Kid(new, node, idx-1, tree.new(merged), merged.getKey(0))
 	case mergeDir > 0: // right
 		merged := BNode(make([]byte, BTREE_PAGE_SIZE))
-		nodeMerge(merged, sibling, updated)
+		nodeMerge(merged, updated, sibling)
 		tree.del(node.getPtr(idx + 1))
 		nodeReplace2Kid(new, node, idx, tree.new(merged), merged.getKey(0))
 	case mergeDir == 0 && updated.nkeys() == 0:
