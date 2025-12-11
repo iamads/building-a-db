@@ -1375,32 +1375,32 @@ func TestShouldMerge(t *testing.T) {
 		// Create parent with children
 		parent := BNode(make([]byte, BTREE_PAGE_SIZE))
 		parent.setHeader(BNODE_NODE, 3)
-		
+
 		// Small left sibling
 		left := BNode(make([]byte, BTREE_PAGE_SIZE))
 		left.setHeader(BNODE_LEAF, 2)
 		nodeAppendKV(left, 0, 0, []byte("a"), []byte("va"))
 		nodeAppendKV(left, 1, 0, []byte("b"), []byte("vb"))
-		
+
 		// Small updated node (underflow)
 		updated := BNode(make([]byte, BTREE_PAGE_SIZE))
 		updated.setHeader(BNODE_LEAF, 1)
 		nodeAppendKV(updated, 0, 0, []byte("c"), []byte("vc"))
-		
+
 		// Right sibling
 		right := BNode(make([]byte, BTREE_PAGE_SIZE))
 		right.setHeader(BNODE_LEAF, 10)
 		for i := 0; i < 10; i++ {
 			nodeAppendKV(right, uint16(i), 0, []byte{byte('d' + i)}, []byte("val"))
 		}
-		
+
 		pages[100] = left
 		pages[300] = right
-		
+
 		nodeAppendKV(parent, 0, 100, left.getKey(0), nil)
 		nodeAppendKV(parent, 1, 200, updated.getKey(0), nil)
 		nodeAppendKV(parent, 2, 300, right.getKey(0), nil)
-		
+
 		// Should merge with left sibling
 		mergeDir, sibling := shouldMerge(tree, parent, 1, updated)
 		assert.Equal(t, -1, mergeDir, "Should merge left")
@@ -1417,23 +1417,23 @@ func TestShouldMerge(t *testing.T) {
 
 		parent := BNode(make([]byte, BTREE_PAGE_SIZE))
 		parent.setHeader(BNODE_NODE, 2)
-		
+
 		// Small updated node at idx 0 (no left sibling)
 		updated := BNode(make([]byte, BTREE_PAGE_SIZE))
 		updated.setHeader(BNODE_LEAF, 1)
 		nodeAppendKV(updated, 0, 0, []byte("a"), []byte("va"))
-		
+
 		// Small right sibling
 		right := BNode(make([]byte, BTREE_PAGE_SIZE))
 		right.setHeader(BNODE_LEAF, 2)
 		nodeAppendKV(right, 0, 0, []byte("b"), []byte("vb"))
 		nodeAppendKV(right, 1, 0, []byte("c"), []byte("vc"))
-		
+
 		pages[200] = right
-		
+
 		nodeAppendKV(parent, 0, 100, updated.getKey(0), nil)
 		nodeAppendKV(parent, 1, 200, right.getKey(0), nil)
-		
+
 		// Should merge with right sibling
 		mergeDir, sibling := shouldMerge(tree, parent, 0, updated)
 		assert.Equal(t, 1, mergeDir, "Should merge right")
@@ -1471,7 +1471,7 @@ func TestTreeDelete(t *testing.T) {
 		assert.Equal(t, uint16(3), result.nkeys())
 		assert.Equal(t, []byte("key1"), result.getKey(1))
 		assert.Equal(t, []byte("key3"), result.getKey(2))
-		
+
 		// Verify key2 is gone
 		for i := uint16(0); i < result.nkeys(); i++ {
 			assert.NotEqual(t, []byte("key2"), result.getKey(i))
@@ -1724,7 +1724,7 @@ func TestBTreeDeleteMethod(t *testing.T) {
 		// Root may have changed if height reduced
 		// Just verify tree is still valid
 		assert.NotEqual(t, uint64(0), tree.root, "Should still have one key")
-		
+
 		// Root might be different if tree height changed
 		_ = initialRoot
 	})
